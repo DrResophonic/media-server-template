@@ -1,0 +1,9 @@
+title: Media Server Dashboard
+description: Dashboard with links to apps on media server
+layout:
+  Media:
+    style: row
+    columns: 2
+  Usenet:
+    style: row
+    columns: 2

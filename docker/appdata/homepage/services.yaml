@@ -1,0 +1,51 @@
+- Media:
+    - Sonarr:
+        icon: sonarr.png
+        href: https://sonarr.mydomain.com
+        description: TV series management
+        widget:
+          type: sonarr
+          url: http://sonarr:8989
+          key: apikeyapikey
+    - Radarr:
+        icon: radarr.png
+        href: https://radarr.mydomain.com
+        description: Movie management
+        widget:
+          type: radarr
+          url: http://radarr:7878
+          key: apikeyapikey
+    - Profilarr:
+        icon: booklogr.png
+        href: https://profilarr.mydomain.com
+        description: Quality profile and cutom format management for sonarr/radarr
+    - Plex:
+        icon: plex.png
+        href: https://plex.mydomain.com
+        description: Media Streaming Server
+- Usenet:
+    - NZBGeek:
+        icon: z-wave-js-ui.png
+        href: https://nzbgeek.info
+        description: NZB indexer
+    - NZBGet:
+        icon: nzbget.png
+        href: https://nzbget.mydomain.com
+        description: NZB downloader
+    - Prowlarr:
+        icon: prowlarr.png
+        href: https://prowlarr.mydomain.com
+        description: NZB indexer management
+        widget:
+          type: prowlarr
+          url: http://prowlarr:9696
+          key: apikeyapikey
+    - Frugal Usenet:
+        icon: asterisk.png
+        href: https://frugalusenet.com
+        description: Usenet provider
+- Server:
+    - Traefik:
+        icon: traefik-proxy.png
+        href: https://traefik.mydomain.com/dashboard/
+        description: Traefik reverse proxy dashboard

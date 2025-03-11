@@ -1,0 +1,12 @@
+- resources:
+    cpu: true
+    memory: true
+    disk:
+      - /data
+
+- datetime:
+    text_size: md
+    format:
+      dateStyle: short
+      timeStyle: short
+      hour12: true

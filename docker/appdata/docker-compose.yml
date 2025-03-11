@@ -1,0 +1,333 @@
+services:
+  traefik:
+    image: ghcr.io/traefik/traefik:3.3
+    container_name: traefik
+    restart: always
+    environment:
+      - CLOUDFLARE_EMAIL=${CLOUDFLARE_EMAIL}
+      - CLOUDFLARE_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
+      - CLOUDFLARE_ZONE_API_TOKEN=${CLOUDFLARE_ZONE_API_TOKEN}
+      - LETS_ENCRYPT_EMAIL=${LETS_ENCRYPT_EMAIL}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - UMASK=002
+    command:
+      - --ping=true
+      - --api.dashboard=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      ############################
+      ## When ready to start forcing https, uncomment these.  Also uncomment certresolver label on individual containers
+      - --entrypoints.web-secure.address=:443
+      - --entrypoints.web-secure.http.tls=true
+      - --entrypoints.web.http.redirections.entryPoint.to=web-secure
+      - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      ###########################
+      - --certificatesresolvers.myresolver.acme.dnschallenge=${DNS_CHALLENGE:-true}
+      - --certificatesresolvers.myresolver.acme.dnschallenge.provider=${DNS_CHALLENGE_PROVIDER:-cloudflare}
+      - --certificatesresolvers.myresolver.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53
+      - --certificatesresolvers.myresolver.acme.caserver=${LETS_ENCRYPT_CA_SERVER:-https://acme-v02.api.letsencrypt.org/directory}
+      - --certificatesresolvers.myresolver.acme.email=${LETS_ENCRYPT_EMAIL}
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ${DOCKERCONFDIR}/letsencrypt:/letsencrypt
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 1m
+      retries: 10
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dashboard.rule=Host(`traefik.${SERVICE_BASE_HOSTNAME}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+      - traefik.http.routers.dashboard.tls=true
+      - traefik.http.routers.dashboard.tls.certresolver=myresolver
+      - traefik.http.routers.dashboard.service=api@internal
+      - traefik.http.routers.dashboard.middlewares=myauth
+      - traefik.http.middlewares.myauth.basicauth.users=${TRAEFIK_DASHBOARD_USER}:${TRAEFIK_DASHBOARD_HASHEDPASS}
+      - org.hotio.pullio.update=${PULLIO_UPDATE}
+      - org.hotio.pullio.notify=${PULLIO_NOTIFY}
+      - org.hotio.pullio.discord.webhook=${PULLIO_DISCORD_WEBHOOK}
+  #############################################################################
+  # Radarr - https://hotio.dev/containers/radarr/
+  # mkdir /hdd/docker/appdata/radarr
+  #############################################################################
+  radarr:
+    container_name: radarr
+    image: ghcr.io/hotio/radarr:release
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-file: ${DOCKERLOGGING_MAXFILE}
+        max-size: ${DOCKERLOGGING_MAXSIZE}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.radarr.rule=(Host(`radarr.${SERVICE_BASE_HOSTNAME}`))
+      - traefik.http.routers.radarr.tls.certresolver=myresolver
+      - traefik.http.services.radarr.loadbalancer.server.port=7878
+      - org.hotio.pullio.update=${PULLIO_UPDATE}
+      - org.hotio.pullio.notify=${PULLIO_NOTIFY}
+      - org.hotio.pullio.discord.webhook=${PULLIO_DISCORD_WEBHOOK}
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - UMASK=002
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ${DOCKERCONFDIR}/radarr:/config
+      - ${DOCKERSTORAGEDIR}:/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:7878/ping"]
+      interval: 1m
+      retries: 10
+    depends_on:
+      - prowlarr
+  #############################################################################
+  # Sonarr - https://hotio.dev/containers/sonarr/
+  # mkdir /hdd/docker/appdata/sonarr
+  #############################################################################
+  sonarr:
+    container_name: sonarr
+    image: ghcr.io/hotio/sonarr:release
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-file: ${DOCKERLOGGING_MAXFILE}
+        max-size: ${DOCKERLOGGING_MAXSIZE}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.sonarr.rule=(Host(`sonarr.${SERVICE_BASE_HOSTNAME}`))
+      - traefik.http.routers.sonarr.tls.certresolver=myresolver
+      - traefik.http.services.sonarr.loadbalancer.server.port=8989
+      - org.hotio.pullio.update=${PULLIO_UPDATE}
+      - org.hotio.pullio.notify=${PULLIO_NOTIFY}
+      - org.hotio.pullio.discord.webhook=${PULLIO_DISCORD_WEBHOOK}
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - UMASK=002
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ${DOCKERCONFDIR}/sonarr:/config
+      - ${DOCKERSTORAGEDIR}:/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:8989/ping"]
+      interval: 1m
+      retries: 10
+    depends_on:
+      - prowlarr
+  #############################################################################
+  # Bazarr - https://hotio.dev/containers/bazarr/
+  # mkdir /hdd/docker/appdata/bazarr
+  #############################################################################
+  bazarr:
+    container_name: bazarr
+    image: ghcr.io/hotio/bazarr:release
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-file: ${DOCKERLOGGING_MAXFILE}
+        max-size: ${DOCKERLOGGING_MAXSIZE}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.bazarr.rule=(Host(`bazarr.${SERVICE_BASE_HOSTNAME}`))
+      - traefik.http.routers.bazarr.tls.certresolver=myresolver
+      - traefik.http.services.bazarr.loadbalancer.server.port=6767
+      - org.hotio.pullio.update=${PULLIO_UPDATE}
+      - org.hotio.pullio.notify=${PULLIO_NOTIFY}
+      - org.hotio.pullio.discord.webhook=${PULLIO_DISCORD_WEBHOOK}
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - UMASK=002
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ${DOCKERCONFDIR}/bazarr:/config
+      - ${DOCKERSTORAGEDIR}/media:/data/media
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:6767/ping"]
+      interval: 1m
+      retries: 10
+    depends_on:
+      - prowlarr
+  #############################################################################
+  # Prowlarr - https://hotio.dev/containers/prowlarr/
+  # mkdir /hdd/docker/appdata/prowlarr
+  #############################################################################
+  prowlarr:
+    container_name: prowlarr
+    image: ghcr.io/hotio/prowlarr:release
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-file: ${DOCKERLOGGING_MAXFILE}
+        max-size: ${DOCKERLOGGING_MAXSIZE}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.prowlarr.rule=(Host(`prowlarr.${SERVICE_BASE_HOSTNAME}`))
+      - traefik.http.routers.prowlarr.tls.certresolver=myresolver
+      - traefik.http.services.prowlarr.loadbalancer.server.port=9696
+      - org.hotio.pullio.update=${PULLIO_UPDATE}
+      - org.hotio.pullio.notify=${PULLIO_NOTIFY}
+      - org.hotio.pullio.discord.webhook=${PULLIO_DISCORD_WEBHOOK}
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - UMASK=002
+      - ARGS=
+    volumes:
+      - ${DOCKERCONFDIR}/prowlarr:/config:rw
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:9696/ping"]
+      interval: 1m
+      retries: 10
+    depends_on:
+      - nzbget
+  #############################################################################
+  # nzbget - https://hotio.dev/containers/nzbget/
+  # mkdir /hdd/docker/appdata/nzbget
+  #############################################################################
+  nzbget:
+    container_name: nzbget
+    image: ghcr.io/hotio/nzbget:release
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-file: ${DOCKERLOGGING_MAXFILE}
+        max-size: ${DOCKERLOGGING_MAXSIZE}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.nzbget.rule=(Host(`nzbget.${SERVICE_BASE_HOSTNAME}`))
+      - traefik.http.routers.nzbget.tls.certresolver=myresolver
+      - traefik.http.services.nzbget.loadbalancer.server.port=6789
+      - org.hotio.pullio.update=${PULLIO_UPDATE}
+      - org.hotio.pullio.notify=${PULLIO_NOTIFY}
+      - org.hotio.pullio.discord.webhook=${PULLIO_DISCORD_WEBHOOK}
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - UMASK=002
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ${DOCKERCONFDIR}/nzbget:/config
+      - ${DOCKERSTORAGEDIR}/usenet:/data/usenet:rw
+  #############################################################################
+  # profilarr - https://dictionarry.dev/wiki/profilarr-setup
+  # mkdir /hdd/docker/appdata/profilarr
+  #############################################################################
+  profilarr:
+    container_name: profilarr
+    image: santiagosayshey/profilarr:latest
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-file: ${DOCKERLOGGING_MAXFILE}
+        max-size: ${DOCKERLOGGING_MAXSIZE}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.profilarr.rule=(Host(`profilarr.${SERVICE_BASE_HOSTNAME}`))
+      - traefik.http.routers.profilarr.tls.certresolver=myresolver
+      - traefik.http.services.profilarr.loadbalancer.server.port=6868
+      - org.hotio.pullio.update=${PULLIO_UPDATE}
+      - org.hotio.pullio.notify=${PULLIO_NOTIFY}
+      - org.hotio.pullio.discord.webhook=${PULLIO_DISCORD_WEBHOOK}
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - UMASK=002
+    volumes:
+      - ${DOCKERCONFDIR}/profilarr:/config
+  #############################################################################
+  # Plex - https://hotio.dev/containers/plex/
+  # mkdir -p /hdd/docker/appdata/plex
+  # Also please read the extra info => https://trash-guides.info/Hardlinks/How-to-setup-for/Synology/#appdata
+  #############################################################################
+  plex:
+    container_name: plex
+    image: ghcr.io/hotio/plex:release
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-file: ${DOCKERLOGGING_MAXFILE}
+        max-size: ${DOCKERLOGGING_MAXSIZE}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.plex.rule=(Host(`plex.${SERVICE_BASE_HOSTNAME}`))
+      - traefik.http.routers.plex.tls.certresolver=myresolver
+      - traefik.http.services.plex.loadbalancer.server.port=32400
+      - org.hotio.pullio.update=${PULLIO_UPDATE}
+      - org.hotio.pullio.notify=${PULLIO_NOTIFY}
+      - org.hotio.pullio.discord.webhook=${PULLIO_DISCORD_WEBHOOK}
+    ports:
+      - 32400:32400
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - UMASK=002
+      - PLEX_CLAIM_TOKEN=${PLEX_CLAIM_TOKEN}
+      - PLEX_ADVERTISE_URL=${PLEX_ADVERTISE_URL}
+      - PLEX_NO_AUTH_NETWORKS=
+      - PLEX_BETA_INSTALL=${PLEX_BETA_INSTALL}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ${DOCKERCONFDIR}/plex:/config:rw
+      - ${DOCKERSTORAGEDIR}/media:/data/media:rw
+  #    devices:                                        # optional: if you have a Syno with an Intel CPU with quicksync and want hardware transcoding (only with Plex Pass) uncomment this line.
+  #      - /dev/dri:/dev/dri                           # optional: if you have a Syno with an Intel CPU with quicksync and want hardware transcoding (only with Plex Pass) uncomment this line.
+  #    tmpfs:                                          # optional: if you have a Syno with enough RAM, you can uncomment this line to enable transcoding in RAM. uncomment this line.
+  #      - /transcode                                  # optional: if you have a Syno with enough RAM, you can uncomment this line to enable transcoding in RAM. uncomment this line.
+
+  #############################################################################
+  # homepage- https://gethomepage.dev/
+  # mkdir /hdd/docker/appdata/homepage
+  #############################################################################
+  homepage:
+    container_name: homepage
+    image: ghcr.io/gethomepage/homepage:latest
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-file: ${DOCKERLOGGING_MAXFILE}
+        max-size: ${DOCKERLOGGING_MAXSIZE}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.homepage.rule=(Host(`${SERVICE_BASE_HOSTNAME}`))
+      - traefik.http.routers.homepage.tls.certresolver=myresolver
+      - traefik.http.services.homepage.loadbalancer.server.port=3000
+      - org.hotio.pullio.update=${PULLIO_UPDATE}
+      - org.hotio.pullio.notify=${PULLIO_NOTIFY}
+      - org.hotio.pullio.discord.webhook=${PULLIO_DISCORD_WEBHOOK}
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - UMASK=002
+    volumes:
+      - ${DOCKERCONFDIR}/homepage:/app/config # Make sure your local config directory exists
+      - ${DOCKERSTORAGEDIR}:/data
+
+networks:
+  default:
+    name: media-server
