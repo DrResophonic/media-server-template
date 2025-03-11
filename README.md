@@ -274,7 +274,7 @@ After setup is complete you will be able to access your software at the followin
      | Sonarr | https://sonarr.mydomain.com |
      | Radarr | https://radarr.mydomain.com |
      | Profilarr/Dictionarry | https://profilarr.mydomain.com |
-     | Traefik Dashboard | https://traefik.mydomain.com |
+     | Traefik Dashboard | https://traefik.mydomain.com/dashboard/ |
      | Plex | https://plex.mydomain.com |
      | Homepage Dashboard | https://mydomain.com |
 1. Initial NZBGet setup
