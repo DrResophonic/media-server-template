@@ -86,16 +86,16 @@ At a high level, external access can be achieved either by enabling a VPN, or po
 
 After setup is complete you will be able to access your software at the following URLs:
 
-| App                   | URL                            |
-| --------------------- | ------------------------------ |
-| NZBGet                | https://nzbget.mydomain.com    |
-| Prowlarr              | https://prowlarr.mydomain.com  |
-| Sonarr                | https://sonarr.mydomain.com    |
-| Radarr                | https://radarr.mydomain.com    |
-| Profilarr/Dictionarry | https://profilarr.mydomain.com |
-| Traefik Dashboard     | https://traefik.mydomain.com   |
-| Plex                  | https://plex.mydomain.com      |
-| Homepage Dashboard    | https://mydomain.com           |
+| App                   | URL                                     | Description                                     |
+| --------------------- | --------------------------------------- | ----------------------------------------------- |
+| NZBGet                | https://nzbget.mydomain.com             | Usenet downloader                               |
+| Prowlarr              | https://prowlarr.mydomain.com           | Usenet indexer management for Radarr and Sonarr |
+| Sonarr                | https://sonarr.mydomain.com             | PVR for Usenet, i.e. manage TV series           |
+| Radarr                | https://radarr.mydomain.com             | Movie collection manager for Radarr             |
+| Profilarr/Dictionarry | https://profilarr.mydomain.com          | Quality profile manager for Sonarr/Radarr       |
+| Traefik Dashboard     | https://traefik.mydomain.com/dashboard/ | Reverse proxy                                   |
+| Plex                  | https://plex.mydomain.com               | Media streaming server                          |
+| Homepage Dashboard    | https://mydomain.com                    | Customizable application dashboard              |
 
 ## Server Setup Steps
 
