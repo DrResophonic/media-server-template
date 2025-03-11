@@ -26,6 +26,9 @@ More specifically this repo contains:
     - [Internal vs External Access](#internal-vs-external-access)
   - [Application URLs](#application-urls)
   - [Server Setup Steps](#server-setup-steps)
+    - [Server Setup](#server-setup)
+    - [Docker Setup](#docker-setup)
+    - [Post-Install Application Setup](#post-install-application-setup)
   - [Misc](#misc)
     - [Helpful Docker Compose Commands](#helpful-docker-compose-commands)
   - [Credits](#credits)
@@ -98,6 +101,16 @@ After setup is complete you will be able to access your software at the followin
 | Homepage Dashboard    | https://mydomain.com                    | Customizable application dashboard              |
 
 ## Server Setup Steps
+
+This section is a long series of steps, from installing Ubuntu Server on a blank machine to having running applications. It follows three major areas:
+
+- [Server setup](#server-setup)
+- [Docker setup](#docker-setup)
+- [Post-install application setup](#post-install-application-setup)
+
+If you already have a server running you could skip the first section.
+
+### Server Setup
 
 1. We want to manage this server remotely via SSH. That could be done with the user/name password created during Ubuntu install, but it can also be done via SSH keys. SSH keys are better for various reasons. If you don't want to use SSH keys, continue to install ubuntu server step.
    1. [Generate new SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent) and add it to the ssh-agent.
@@ -219,6 +232,9 @@ After setup is complete you will be able to access your software at the followin
    sudo chown -R adminUserName:users /hdd/data /hdd/docker
    sudo chmod -R a=,a+rX,u+w,g+w /hdd/data /hdd/docker
    ```
+
+### Docker Setup
+
 1. Register a new domain or transfer your domain to Cloudflare. Set up your domain here, and take note of some API keys for later use.
 
    1. Set up DNS records for mydomain.com and \*.mydomain.com to point to the internal IP you noted earlier.
@@ -277,6 +293,9 @@ After setup is complete you will be able to access your software at the followin
      | Traefik Dashboard | https://traefik.mydomain.com/dashboard/ |
      | Plex | https://plex.mydomain.com |
      | Homepage Dashboard | https://mydomain.com |
+
+### Post-Install Application Setup
+
 1. Initial NZBGet setup
 
    1. Navigate to https://nzbget.mydomain.com
