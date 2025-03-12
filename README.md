@@ -25,6 +25,15 @@ More specifically this repo contains:
     - [SSL Certificates](#ssl-certificates)
     - [Internal vs External Access](#internal-vs-external-access)
   - [Application URLs](#application-urls)
+  - [Docker Compose File Overview](#docker-compose-file-overview)
+    - [Labels for Non-Traefik Containers](#labels-for-non-traefik-containers)
+      - [Pullio-Related Labels](#pullio-related-labels)
+      - [Traefik-Related Labels](#traefik-related-labels)
+    - [Environment Variables For Non-Traefik Containers](#environment-variables-for-non-traefik-containers)
+    - [Labels, Environment Variables and Commands for Traefik](#labels-environment-variables-and-commands-for-traefik)
+      - [Traefik Commands](#traefik-commands)
+      - [Traefik Environment Variables](#traefik-environment-variables)
+      - [Traefik Labels](#traefik-labels)
   - [Server Setup Steps](#server-setup-steps)
     - [Server Setup](#server-setup)
     - [Docker Setup](#docker-setup)
@@ -99,6 +108,91 @@ After setup is complete you will be able to access your software at the followin
 | Traefik Dashboard     | https://traefik.mydomain.com/dashboard/ | Reverse proxy                                   |
 | Plex                  | https://plex.mydomain.com               | Media streaming server                          |
 | Homepage Dashboard    | https://mydomain.com                    | Customizable application dashboard              |
+
+## Docker Compose File Overview
+
+The docker-compose.yml file in this repo has containers for all the applications above. For the most part this file should not need to be edited. Most of the environment variables, volumes, labels, etc. follow a very similar pattern for all containers which is explained below. The Traefik container is a special case so that is explained separately
+
+### Labels For Non-Traefik Containers
+
+#### Pullio-Related Labels
+
+All containers have three Pullio-related labels. Pullio is a bash script scheduled via a cron job that updates your docker containers automatically. More info can be found [here](https://hotio.dev/scripts/pullio/).
+| Label | Description
+| --- | --- |
+| org.hotio.pullio.update | true/false. If set to false Pullio will ignore this container and won't update it |
+| org.hotio.pullio.notify | true/false. if set to false Pullio will not send any notifications when updates occur. If true, discord notifications are supported |
+| org.hotio.pullio.discord.webhook | Populate with a webhook created in your Discord channel. Only Discord or custom webhooks are supported |
+
+#### Traefik-Related Labels
+
+By default, Traefik looks for container-level labels to configure how requests should be routed. It supports way more than is being used here, so there are only a few simple labels for each container. The Traefik container itself is a special case and will be explained separately.
+
+You will see labels named traefik.http.routers.XXXX.someSetting and traefik.http.services.XXXX.someSetting. Each service needs its own configuration, and the XXXX is a somwhat arbitrary label used to define that site's specific configuration. It can be any unique value, but by convention it's named the same as the container.
+
+| Label                                                                        | Description                                                                                                                                                                                                                                                  |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| traefik.enable                                                               | True/false. Should always be true. If set to false traefik will ignore this container and your application won't be accessible                                                                                                                               |
+| traefik.http.routers.radarr.rule=(Host(\`radarr.${SERVICE_BASE_HOSTNAME}\`)) | Used to match against a hostname for routing traffic to the container. Each container uses the SERVICE_BASE_HOSTNAME .env variable as the base domain. In this example Traefik will send traffic to this container if the domain/host = radarr.mydomain.com. |
+| traefik.http.routers.radarr.tls.certresolver=myresolver                      | myresolver is defined inside the traefik container itself, and has settings for how to provision SSL certificates. This label on each container is a pointer to that resolver. In this setup they can all use the same resolver (Let's Encrypt/Cloudflare)   |
+| traefik.http.services.radarr.loadbalancer.server.port=7878                   | This should be set to the port on which the application in that container responds. All the \*ar apps, NZBGet, etc. respond on a different port by default. The values in this compose file all use the default ports for their respective applications      |
+
+### Environment Variables For Non-Traefik Containers
+
+Just about all containers have 4 main environment variables, with a couple extra for plex:
+
+| environment: variable | Description                                                                                                                        |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| PUID                  | User under which docker container processes will run                                                                               |
+| PGID                  | Group under which docker container processes will run                                                                              |
+| TZ                    | Timezone, may not work depending on docker image you're using. I don't know if these specific images have tzdata package installed |
+| UMASK                 | Sets file creation permissions. 002 was used in the examples I found and frankly that's why you see it here                        |
+| PLEX_CLAIM_TOKEN      | Used in plex image, needed to register your plex server                                                                            |
+| PLEX_ADVERTISE_URL    | IP/Port of your Plex server on your LAN. Used to publish your media server's address for discovery                                 |
+| PLEX_NO_AUTH_NETWORKS | List of IP addresses and networks that are allowed without auth                                                                    |
+| PLEX_BETA_INSTALL     | True/false, whether beta builds of plex are allowed. Requires plex pass                                                            |
+
+### Labels, Environment Variables, and Commands for Traefik
+
+Traefik is a reverse proxy that helps secure your environment (more is needed to fully secure it) and access your apps with friendly URLs. There two important concepts these labels, variables, and comments relate to:
+
+SSL Certificate provisioning: Traefik uses Let's encrypt to automatically provision SSL certificates for you, specifically using the [DNS-01 challenge type](https://doc.traefik.io/traefik/https/acme/#dnschallenge). Traefik communicates with Let's encrypt to get a token. It then uses the Cloudflare API to create a DNS record with that token. Let's encrypt sees the token, trusts that you own the domain, and issues the certificate. Many of the commands and environment variables are related to configuring this process.
+
+Routing: The other configuration items are related to basic routing like automatic redirect from HTTP to HtTPs, automatic discovery of your docker containers, access to the traefik dashboard interface, etc.
+
+#### Traefik Commands
+
+| Command                                                                                                                                                                                                                                                                         | Description                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ping                                                                                                                                                                                                                                                                            | True/false. Enabled health check pings for Traefik instance                                                                                                                                    |
+| api.dashboard                                                                                                                                                                                                                                                                   | True/false, enable Traefik dashboard access or not                                                                                                                                             |
+| providers.docker                                                                                                                                                                                                                                                                | True/false, should always be true. Enables the Traefik Docker integration to auto-discover your other containers                                                                               |
+| providers.docker.exposedbydefault                                                                                                                                                                                                                                               | True/false. If set to true Traefik will enable routing for all containers by default. If set to false, each container must have a traefik.enable=true for it to be exposed/enabled in Traefik. |
+| entrypoints.web.address <br/> entrypoints.web-secure.address <br/> entrypoints.web-secure.http.tls <br/> entrypoints.web.http.redirections.entryPoint.to <br/> entrypoints.web.http.redirections.entryPoint.scheme <br/> entrypoints.web.http.redirections.entrypoint.permanent | These commands together define a web entry point listening on port 80, a web-secure entry point listening on port 443, and requests to port 80 will get redirected to port 443                 |
+| certificatesresolvers.myresolver.acme.dnschallenge                                                                                                                                                                                                                              | True/false, tells myresolver to use a dnschallenge if true. Should always be true with current configuration                                                                                   |
+| certificatesresolvers.myresolver.acme.dnschallenge.provider                                                                                                                                                                                                                     | Tells traefik which DNS provider to use, in this case Cloduflare                                                                                                                               |
+| certificatesresolvers.myresolver.acme.dnschallenge.resolvers                                                                                                                                                                                                                    | DNS servers to use to resolve FQDN authority                                                                                                                                                   |
+| certificatesresolvers.myresolver.acme.caserver                                                                                                                                                                                                                                  | Let's encrypt server to use                                                                                                                                                                    |
+| certificatesresolvers.myresolver.acme.email                                                                                                                                                                                                                                     | Email reported to Let's encrypt for certificates and renewals                                                                                                                                  |
+| certificatesresolvers.myresolver.acme.storage                                                                                                                                                                                                                                   | Location to cert file. The /letsencrypt volume is mapped to this container in the volumes config                                                                                               |
+
+#### Traefik Environment Variables
+
+| environment: Variable     | Description                                                                                    |
+| ------------------------- | ---------------------------------------------------------------------------------------------- |
+| CLOUDFLARE_EMAIL          | Email associated with your Cloudflare account                                                  |
+| CLOUDFLARE_DNS_API_TOKEN  | Traefik uses these API tokens to read and edit your DNS for the Let's Encrypt DNS-01 challenge |
+| CLOUDFLARE_ZONE_API_TOKEN | Traefik uses these API tokens to read and edit your DNS for the Let's Encrypt DNS-01 challenge |
+| LETS_ENCRYPT_EMAIL        | Email for Let's Encrypt certificate                                                            |
+
+#### Traefik Labels
+
+| Label                                           | Description                                                                                                                                                                                                                                            |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| traefik.http.routers.dashboard.rule             | This serves the same purpose as the other rules, but is slightly different. Traefik exposes the dashboard on /dashboard/ URL, which also requires /api/. We only want requests to get to the Traefik container unless they're for the dashboard or api |
+| traefik.http.routers.dashboard.service          | Attach this router to the api@internal service, which then allows you to secure the dashboard with router rules, basic HTTP auth, etc. I use basic HTTP auth                                                                                           |
+| traefik.http.routers.dashboard.middlewares      | Used to wire up middleware for this router's request pipeline. In this case, used to add a myauth middleware which is basic HTTP auth                                                                                                                  |
+| traefik.http.middlewares.myauth.basicauth.users | Enables basic auth and sets the list of allowed users to a user you generate later in these steps                                                                                                                                                      |
 
 ## Server Setup Steps
 
