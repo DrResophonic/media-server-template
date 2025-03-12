@@ -25,6 +25,7 @@ More specifically this repo contains:
     - [SSL Certificates](#ssl-certificates)
     - [Internal vs External Access](#internal-vs-external-access)
   - [Application URLs](#application-urls)
+  - [File System](#file-system)
   - [Docker Compose File Overview](#docker-compose-file-overview)
     - [Labels for Non-Traefik Containers](#labels-for-non-traefik-containers)
       - [Pullio-Related Labels](#pullio-related-labels)
@@ -108,6 +109,41 @@ After setup is complete you will be able to access your software at the followin
 | Traefik Dashboard     | https://traefik.mydomain.com/dashboard/ | Reverse proxy                                   |
 | Plex                  | https://plex.mydomain.com               | Media streaming server                          |
 | Homepage Dashboard    | https://mydomain.com                    | Customizable application dashboard              |
+
+## File System
+
+I use the TRaSH Guides [recommended file and folder structure](https://trash-guides.info/File-and-Folder-Structure/). The main benefits of this approach are hardlinks and instant moves which are explained more in the TRaSH Guides recommendation page. The key is that all storage for downloaders, media library, etc. are on the same file system. That way all your containers can have access to the folders they need but see the file system structure in the same way. I'm using a volume I mounted at /hdd, and at the end of this setup this is what the file system will look like:
+
+         hdd
+         ├── data
+         │   ├── media
+         │   │   ├── movies
+         │   │   ├── music
+         │   │   └── tv
+         │   └── usenet
+         │       ├── complete
+         │       │   ├── movies
+         │       │   ├── music
+         │       │   └── tv
+         │       ├── incomplete
+         │       │   ├── movies
+         │       │   ├── music
+         │       │   └── tv
+         └── docker
+            └── appdata
+                ├── bazarr
+                ├── homepage
+                ├── letsencrypt
+                ├── nzbget
+                ├── plex
+                ├── profilarr
+                ├── prowlarr
+                ├── pullio
+                └── radarr
+
+- /hdd/docker/appdata is for a all of your docker containers' configuration databases, logs, etc. It supports the applications themselves.
+- /hdd/data/usenet is for your downloaders
+- /hdd/data/media is for your actual media library used by Plex, \*arr apps, etc.
 
 ## Docker Compose File Overview
 
