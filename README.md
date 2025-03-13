@@ -81,7 +81,7 @@ At a high level, all apps run in their own docker container. Traefik is used as 
 
 ### Routing
 
-I prefer subdomains versus URL paths to reach applications. For example I prefer sonarr.mydomain.com over mydomain.com/sonarr. It's not more effort, and you don't need to modify application-specific configuration in sonarr/radarr to have them respond on that path. Therefore Traefik is configured to recognize routes based on subdomain and not path. A wildcard DNS record for \*.mydomain.com is used in Cloudflare, but you could use hosts file entries or some internal DNS like pihole instead. Using a wildcard entry in Cloudflare means we don't expose service names in our public DNS records like sonarr.mydomain.com. There may be reasons why subdomains shouldn't be used, but I don't have any other servers or domains to manage, so for now it works for me.
+I prefer subdomains versus URL paths to reach applications. For example I prefer sonarr.mydomain.com over mydomain.com/sonarr. It's not more effort, and you don't need to modify application-specific configuration in sonarr/radarr to have them respond on that path. Therefore Traefik is configured to recognize routes based on subdomain and not path. A wildcard DNS record for \*.mydomain.com is used in Cloudflare, but you could use hosts file entries or some internal DNS server instead. Using a wildcard entry in Cloudflare means we don't expose service names in our public DNS records like sonarr.mydomain.com. There may be reasons why subdomains shouldn't be used, but I don't have any other servers or domains to manage, so for now it works for me.
 
 ### SSL Certificates
 
