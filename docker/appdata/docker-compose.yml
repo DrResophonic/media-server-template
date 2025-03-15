@@ -324,6 +324,7 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
       - UMASK=002
+      - HOMEPAGE_ALLOWED_HOSTS=${HOMEPAGE_ALLOWED_HOSTS}
     volumes:
       - ${DOCKERCONFDIR}/homepage:/app/config # Make sure your local config directory exists
       - ${DOCKERSTORAGEDIR}:/data
